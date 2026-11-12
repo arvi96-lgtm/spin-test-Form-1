@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spin & Win - Register</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+       font-family:system-ui,sans-serif;background:#1e1b4b;color:#fff;padding:16px;box-sizing:border-box}
+  .logo{background:#fff;border-radius:18px;padding:10px 18px;margin-bottom:14px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+  .logo img{display:block;height:min(26vw,110px);width:auto;max-width:100%}
+  h1{margin:0 0 4px;text-align:center} p{margin:4px 0 16px;opacity:.8;text-align:center}
+  .card{width:min(92vw,360px);background:#2b2766;border-radius:16px;padding:20px;box-sizing:border-box}
+  label{display:block;font-size:14px;margin:12px 0 4px}
+  input[type=text],input[type=tel]{width:100%;box-sizing:border-box;padding:12px;font-size:16px;border:0;border-radius:10px}
+  .check{display:flex;gap:8px;align-items:flex-start;font-size:13px;margin-top:14px;opacity:.9}
+  button{width:100%;margin-top:18px;padding:14px;font-size:18px;font-weight:700;border:0;border-radius:999px;
+         background:#fbbf24;color:#1e1b4b;cursor:pointer}
+  button:disabled{opacity:.5}
+  #err{color:#fecaca;min-height:20px;margin-top:10px;font-size:14px;text-align:center}
+</style>
+</head>
+<body>
+<div class="logo"><img src="logo.png" alt="KHL Home Connect India Private Limited"></div>
+<h1>🎉 Spin & Win</h1>
+<p>Fill in your details to spin the wheel</p>
+<div class="card" id="card" hidden>
+  <form id="f" novalidate>
+    <label for="name">Your name</label>
+    <input type="text" id="name" autocomplete="name" maxlength="60" required>
+    <label for="phone">Mobile number</label>
+    <input type="tel" id="phone" inputmode="numeric" autocomplete="tel" maxlength="14" placeholder="10-digit number" required>
+    <label for="bill">Bill / Invoice number</label>
+    <input type="text" id="bill" maxlength="40" required>
+    <label class="check"><input type="checkbox" id="ok" required> I agree to share these details for this offer.</label>
+    <button id="btn" type="submit">CONTINUE TO SPIN</button>
+    <div id="err"></div>
+  </form>
+</div>
+<script>
+const go = () => { location.href = '/spin.html'; };
+fetch('/api/prizes').then(r => r.json()).then(d => {
+  if (d.alreadySpun || d.registered) return go();   // already filled the form
+  document.getElementById('card').hidden = false;
+}).catch(() => { document.getElementById('card').hidden = false; });
+
+document.getElementById('f').onsubmit = async e => {
+  e.preventDefault();
+  const err = document.getElementById('err'), btn = document.getElementById('btn');
+  err.textContent = '';
+  if (!document.getElementById('ok').checked) { err.textContent = 'Please tick the agreement box.'; return; }
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: document.getElementById('name').value, phone: document.getElementById('phone').value, bill: document.getElementById('bill').value }) });
+    const data = await res.json();
+    if (res.ok) return go();
+    err.textContent = data.error || 'Something went wrong. Try again.';
+  } catch { err.textContent = 'Network error. Try again.'; }
+  btn.disabled = false;
+};
+</script>
+</body>
+</html>

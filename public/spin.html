@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spin & Win</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+       font-family:system-ui,sans-serif;background:#1e1b4b;color:#fff;text-align:center;padding:16px;box-sizing:border-box}
+  .logo{background:#fff;border-radius:18px;padding:10px 18px;margin-bottom:14px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+  .logo img{display:block;height:min(26vw,110px);width:auto;max-width:100%}
+  h1{margin:0 0 4px} p{margin:4px 0 16px;opacity:.8}
+  .box{position:relative;width:min(88vw,340px);aspect-ratio:1}
+  canvas{width:100%;height:100%;border-radius:50%;border:6px solid #fbbf24;box-sizing:border-box;
+         transition:transform 5s cubic-bezier(.12,.8,.12,1)}
+  .pin{position:absolute;top:-14px;left:50%;transform:translateX(-50%);width:0;height:0;
+       border-left:14px solid transparent;border-right:14px solid transparent;border-top:28px solid #ef4444;z-index:2}
+  button{margin-top:22px;padding:14px 40px;font-size:18px;font-weight:700;border:0;border-radius:999px;
+         background:#fbbf24;color:#1e1b4b;cursor:pointer}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  #result{margin-top:18px;font-size:22px;font-weight:700;min-height:30px}
+</style>
+</head>
+<body>
+<div class="logo"><img src="logo.png" alt="KHL Home Connect India Private Limited"></div>
+<h1>🎉 Spin & Win</h1>
+<p id="hi">One spin per customer. Good luck!</p>
+<div class="box"><div class="pin"></div><canvas id="wheel" width="680" height="680"></canvas></div>
+<button id="btn" disabled>SPIN</button>
+<div id="result"></div>
+<script>
+const canvas = document.getElementById('wheel'), ctx = canvas.getContext('2d');
+const btn = document.getElementById('btn'), result = document.getElementById('result');
+const COLORS = ['#ef4444','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16'];
+let prizes = [];
+
+function draw() {
+  const n = prizes.length, seg = 2 * Math.PI / n, c = 340;
+  prizes.forEach((name, i) => {
+    const a0 = -Math.PI / 2 + i * seg;
+    ctx.beginPath(); ctx.moveTo(c, c); ctx.arc(c, c, c, a0, a0 + seg); ctx.closePath();
+    ctx.fillStyle = COLORS[i % COLORS.length]; ctx.fill();
+    ctx.save(); ctx.translate(c, c); ctx.rotate(a0 + seg / 2);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 28px system-ui'; ctx.textAlign = 'right';
+    ctx.fillText(name, c - 28, 10); ctx.restore();
+  });
+}
+function showPrize(name, already) {
+  result.textContent = (already ? 'You already spun! Your prize: ' : '🎁 You won: ') + name;
+}
+async function init() {
+  const r = await (await fetch('/api/prizes')).json();
+  if (!r.registered) { location.href = '/'; return; }      // must fill the form first
+  prizes = r.prizes; draw();
+  document.getElementById('hi').textContent = 'Hi ' + r.name + '! One spin per customer. Good luck!';
+  if (r.alreadySpun) showPrize(r.prize, true); else btn.disabled = false;
+}
+btn.onclick = async () => {
+  btn.disabled = true;
+  let res, data;
+  try { res = await fetch('/api/spin', { method: 'POST' }); data = await res.json(); }
+  catch { result.textContent = 'Network problem. Please tap SPIN again.'; btn.disabled = false; return; }
+  if (res.status === 500) { result.textContent = 'Something went wrong. Please tap SPIN again.'; btn.disabled = false; return; }
+  if (res.status === 403) { location.href = '/'; return; }
+  if (res.status === 409) { showPrize(data.prize || 'N/A', true); return; }
+  const seg = 360 / prizes.length;
+  canvas.style.transform = `rotate(${360 * 6 - (data.index + 0.5) * seg}deg)`;
+  setTimeout(() => showPrize(data.prize, false), 5200);
+};
+init();
+</script>
+</body>
+</html>
